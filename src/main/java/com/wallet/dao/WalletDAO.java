@@ -8,18 +8,15 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 @Repository
 public class WalletDAO {
 
     private final Map<String, Wallet> walletDb = new ConcurrentHashMap<>();
+    private final Set<String> processedRefs = ConcurrentHashMap.newKeySet();
     private final Map<String, List<Transaction>> transactionDb = new ConcurrentHashMap<>();
-//
-//    private void loadSampleRequest() {
-//        walletDb.put("CUST001", new Wallet("001", "CUST001", new BigDecimal("5000.00")));
-//        walletDb.put("CUST002", new Wallet("002", "CUST002", new BigDecimal("7000.00")));
-//        walletDb.put("CUST003", new Wallet("003", "CUST003", new BigDecimal("10000.00")));
-//    }
+
     private void loadSampleRequest() {
         walletDb.put("CUST001", Wallet.builder()
                 .id("001")
@@ -49,7 +46,15 @@ public class WalletDAO {
     }
     public void saveWallet(String userId, Wallet wallet) {
         walletDb.put(userId, wallet);
-        transactionDb.put(userId, new ArrayList<>());  // init empty transaction list
+       transactionDb.put(userId, new ArrayList<>());  // init empty transaction list
+    }
+
+    public boolean isAlreadyProcessed(String transactionRef) {
+        return processedRefs.contains(transactionRef);
+    }
+
+    public void markAsProcessed(String transactionRef) {
+        processedRefs.add(transactionRef);
     }
 
     // Get wallet by userId

@@ -33,17 +33,17 @@ public class WalletServiceImpl implements WalletService {
                 return AppUtils.walletResponse(400, false, "Wallet already exists for userId: " + walletRequest.getUserId());
             }
 
-            String userId = "CUST-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
             String walletId = "WAL-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
             Wallet wallet = Wallet.builder()
                     .id(walletId)
-                    .userId(userId)
+                    .userId(walletRequest.getUserId())
                     .balance(BigDecimal.ZERO)
                     .build();
 
-            walletDAO.saveWallet(userId, wallet);
-            return AppUtils.walletResponse(201, true, "Wallet created successfully. UserId: " + userId);
+            walletDAO.saveWallet(walletRequest.getUserId(), wallet);
+            return AppUtils.walletResponse(201, true, "Wallet created successfully. UserId: " + walletRequest.getUserId());
 
         } catch (Exception ex) {
             return AppUtils.walletResponse(500, false, "Error creating wallet: " + ex.getMessage());
@@ -54,6 +54,11 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public WalletResponse fundWallet(WalletRequest walletRequest) {
         try {
+            // Idempotency check
+            if (walletDAO.isAlreadyProcessed(walletRequest.getTransactionRef())) {
+                return AppUtils.walletResponse(200, true, "Transaction already processed");
+            }
+
             // Rule 1: Wallet must exist
             checkIfWalletExist(walletRequest.getUserId());
 
@@ -76,6 +81,9 @@ public class WalletServiceImpl implements WalletService {
                     .timestamp(LocalDateTime.now())
                     .build());
 
+            // Mark ref as processed
+            walletDAO.markAsProcessed(walletRequest.getTransactionRef());
+
             return AppUtils.walletResponse(200, true, "Wallet funded successfully. New balance: " + wallet.getBalance());
 
         } catch (WalletNotFoundException ex) {
@@ -86,6 +94,11 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public WalletResponse debitWallet(WalletRequest walletRequest) {
         try {
+            // Idempotency check
+            if (walletDAO.isAlreadyProcessed(walletRequest.getTransactionRef())) {
+                return AppUtils.walletResponse(200, true, "Transaction already processed");
+            }
+
             // Rule 1: Wallet must exist
             checkIfWalletExist(walletRequest.getUserId());
 
@@ -112,6 +125,8 @@ public class WalletServiceImpl implements WalletService {
                     .description("Wallet debited")
                     .timestamp(LocalDateTime.now())
                     .build());
+            // Mark ref as processed
+            walletDAO.markAsProcessed(walletRequest.getTransactionRef());
 
             return AppUtils.walletResponse(200, true, "Debit successful. New balance: " + wallet.getBalance());
 
